@@ -1,0 +1,41 @@
+---
+stages:
+- name: Build
+  inputs:
+  - type: git
+    branch: master
+    service: ${SAMPLE_REPO}
+  triggers:
+  - type: commit
+  jobs:
+  - name: Build
+    type: builder
+- name: Test
+  inputs:
+  - type: job
+    stage: Build
+    job: Build
+  triggers:
+  - type: stage
+  jobs:
+  - name: Test
+    type: tester
+    script: |+
+      #!/bin/bash
+      sudo apt-get -y --force-yes update
+      sudo apt-get -y --force-yes install firefox
+      firefox -v
+      sudo apt-get -y --force-yes install xvfb xfonts-100dpi xfonts-75dpi xfonts-cyrillic xorg dbus-x11
+      wget https://github.com/mozilla/geckodriver/releases/download/v0.17.0/geckodriver-v0.17.0-linux64.tar.gz
+      mkdir bin
+      tar xvzf geckodriver-v0.17.0-linux64.tar.gz -C bin
+      export PATH=$(pwd)/bin:$PATH
+      sudo pip install -U selenium
+      sudo pip install -U pytest
+      Xvfb :10 -ac &
+      export DISPLAY=:10
+      py.test --junitxml results.xml tests/test_python_search.py || :
+      pkill Xvfb
+      cat results.xml
+    enable_tests: true
+    test_file_pattern: results.xml
